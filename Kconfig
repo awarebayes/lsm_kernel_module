@@ -1,0 +1,6 @@
+config SECURITY_MYLSM
+  bool "MYLSM support"
+  depends on SECURITY
+  default n
+  help
+    This is isolation software developed by Mikhail Scherbina
