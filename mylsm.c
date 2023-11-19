@@ -123,6 +123,8 @@ static ssize_t fortune_write(struct file *file, const char __user *buf,
 
 	buffer[len - 1] = '\0';
 
+	pr_info("Got message %s", buffer);
+
 	return len;
 }
 
