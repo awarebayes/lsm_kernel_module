@@ -20,6 +20,7 @@
 
 #include "hooks.h"
 #include "commands.h"
+#include "storage.h"
 
 #define MAX_BUF_SIZE PAGE_SIZE
 #define MAX_NUM_WATCHES 2048
@@ -49,8 +50,6 @@ static struct timer_list my_timer;
 
 static void *ct_seq_start(struct seq_file *m, loff_t *pos)
 {
-	KERN_LOG_MSG();
-
 	if (*pos == 0)
 		return buffer;
 
@@ -60,15 +59,10 @@ static void *ct_seq_start(struct seq_file *m, loff_t *pos)
 
 static void *ct_seq_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	KERN_LOG_MSG();
-
 	if (buffer == NULL)
 		return NULL;
 
 	(*pos)++;
-	printk(KERN_INFO "mylfs: Handling command: v = '%s', pos = %Ld.\n",
-	       (char *)v, *pos);
-
 	return NULL;
 }
 
@@ -78,6 +72,7 @@ static void ct_seq_stop(struct seq_file *m, void *v)
 
 static int ct_seq_show(struct seq_file *sfile, void *v)
 {
+	seq_printf(sfile, return_buffer_get());
 	return 0;
 }
 
@@ -90,35 +85,28 @@ const struct seq_operations seq_ops = {
 
 static int fortune_open(struct inode *sp_inode, struct file *sp_file)
 {
-	KERN_LOG_MSG();
 	return seq_open(sp_file, &seq_ops);
 }
 
 static int fortune_release(struct inode *sp_node, struct file *sp_file)
 {
-	KERN_LOG_MSG();
 	return 0;
 }
 
 static ssize_t fortune_read(struct file *file, char __user *buf, size_t len,
 			    loff_t *f_pos)
 {
-	KERN_LOG_MSG();
 	return seq_read(file, buf, len, f_pos);
 }
 
 static ssize_t fortune_write(struct file *file, const char __user *buf,
 			     size_t len, loff_t *ppos)
 {
-	KERN_LOG_MSG();
-
 	if (len > MAX_BUF_SIZE) {
-		KERN_ERR_MSG("Buffer overflow");
 		return -ENOSPC;
 	}
 
 	if (copy_from_user(buffer, buf, len) != 0) {
-		KERN_ERR_MSG("copy_from_user function get a error");
 		return -EFAULT;
 	}
 
@@ -138,8 +126,6 @@ static const struct proc_ops fops = {
 
 static void cleanup_fortune(void)
 {
-	KERN_LOG_MSG();
-
 	if (fortune_file != NULL)
 		remove_proc_entry(FORTUNE_FILENAME, fortune_dir);
 
@@ -151,10 +137,7 @@ static void cleanup_fortune(void)
 
 static int setup_proc(void)
 {
-	KERN_LOG_MSG();
-
 	if ((buffer = kvzalloc(MAX_BUF_SIZE, GFP_KERNEL)) == NULL) {
-		KERN_ERR_MSG("Allocate memory error.");
 		return -ENOMEM;
 	}
 
@@ -166,12 +149,10 @@ static int setup_proc(void)
 
 	if ((fortune_file = proc_create(FORTUNE_FILENAME, S_IRUGO | S_IWUGO,
 					fortune_dir, &fops)) == NULL) {
-		KERN_ERR_MSG("Error during create file in proc");
 		cleanup_fortune();
 		return -ENOMEM;
 	}
 
-	KERN_INFO_MSG("Module has been successfully inited.\n");
 	return 0;
 }
 

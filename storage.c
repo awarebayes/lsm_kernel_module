@@ -5,8 +5,8 @@
 
 static int initialized = 0;
 static int n_restricted = 0;
-
 static struct list_head *m_restrictions = NULL;
+static char result_buffer[RETURN_BUFFER_SIZE];
 
 #define BUF_SIZE 256
 
@@ -64,9 +64,96 @@ void debug_print_restrictions(void)
 	pr_info("---");
 }
 
+void print_csv_restriction_info(pid_t process)
+{
+	if (!m_restrictions) {
+		pr_info("(debug) Module does not have any restrictions\n");
+		return;
+	}
+	if (!initialized) {
+		pr_info("(debug) Module not initialized\n");
+		return;
+	}
+	struct restriction *r = get_restricted_process(process);
+	if (r == NULL) {
+		pr_info("requested non existent pid to info about for seqfile");
+	}
+	char buffer[4096] = { 0 };
+	char *buffer_ptr = buffer;
+	char *buffer_end = buffer + 4096;
+
+	buffer_ptr += snprintf(buffer_ptr, buffer_end - buffer_ptr,
+			       "restriction start\n");
+	buffer_ptr += snprintf(buffer_ptr, buffer_end - buffer_ptr, "pid %d\n",
+			       r->pid);
+	if (r->dir_restricted) {
+		buffer_ptr += snprintf(buffer_ptr, buffer_end - buffer_ptr,
+				       "dir %s\n", r->working_dir);
+	}
+	for (int i = 0; i < r->num_allowed_files; i++) {
+		char ft_buf[BUF_SIZE] = { 0 };
+		switch (r->file_restrictions[i].type) {
+		case ALLOWED_FILE_REGULAR:
+			sprintf(ft_buf, "regular");
+			break;
+		case ALLOWED_FILE_PIPE:
+			sprintf(ft_buf, "file_pipe");
+			break;
+		case ALLOWED_FILE_UNIX_SOCKET:
+			sprintf(ft_buf, "unix_socket");
+			break;
+		default:
+			sprintf(ft_buf, "unknown");
+			break;
+		}
+		buffer_ptr += snprintf(buffer_ptr, buffer_end - buffer_ptr,
+				       "file %s %s\n", ft_buf,
+				       r->file_restrictions[i].filename);
+	}
+	for (int i = 0; i < r->num_allowed_ips; i++) {
+		buffer_ptr +=
+			snprintf(buffer_ptr, buffer_end - buffer_ptr,
+				 "ipv4 %s\n", r->ip_restrictions[i].ip_str);
+	}
+	buffer_ptr += snprintf(buffer_ptr, buffer_end - buffer_ptr,
+			       "restriction end\n");
+	return_buffer_set(buffer);
+}
+
+void print_csv_restricted_pids(void)
+{
+	char buffer[4096] = { 0 };
+	char *buffer_ptr = buffer;
+	char *buffer_end = buffer + 4096;
+
+	buffer_ptr +=
+		snprintf(buffer_ptr, buffer_end - buffer_ptr, "pids start\n");
+
+	if (!m_restrictions || !initialized) {
+		buffer_ptr += snprintf(buffer_ptr, buffer_end - buffer_ptr,
+				       "pids end\n");
+		return_buffer_set(buffer);
+
+		return;
+	}
+	struct list_head *restriction_iter;
+
+	list_for_each (restriction_iter, m_restrictions) {
+		struct restriction *r =
+			list_entry(restriction_iter, struct restriction, list);
+		buffer_ptr += snprintf(buffer_ptr, buffer_end - buffer_ptr,
+				       "%d\n", r->pid);
+	}
+
+	buffer_ptr +=
+		snprintf(buffer_ptr, buffer_end - buffer_ptr, "pids end\n");
+	return_buffer_set(buffer);
+}
+
 struct restriction *get_restricted_process(pid_t process)
 {
 	struct list_head *restriction_iter;
+
 	if (!m_restrictions) {
 		return NULL;
 	}
@@ -288,4 +375,20 @@ int restriction_allow_ip(pid_t process, char *ip_str)
 	r->num_allowed_ips++;
 
 	return 1;
+}
+
+int return_buffer_set(const char *str)
+{
+	int n_chars = strlen(str);
+	if (n_chars > RETURN_BUFFER_SIZE) {
+		return 0;
+	}
+	memset(result_buffer, 0, n_chars);
+	memcpy(result_buffer, str, n_chars);
+	return 1;
+}
+
+const char *return_buffer_get(void)
+{
+	return result_buffer;
 }

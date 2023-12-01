@@ -101,6 +101,7 @@ int parse_command(const char *command)
 			return 0;
 		} else {
 			pr_info("Restricted pid %d\n", pid);
+			return_buffer_set(command);
 		}
 	} else if (strcmp(command_type, "unrestrict") == 0) {
 		if (!remove_restriction(pid)) {
@@ -108,6 +109,7 @@ int parse_command(const char *command)
 			return 0;
 		} else {
 			pr_info("unrestricted pid %d\n", pid);
+			return_buffer_set(command);
 		}
 	} else if (strcmp(command_type, "allow_file") == 0) {
 		if (!handle_allow_file(command)) {
@@ -115,6 +117,7 @@ int parse_command(const char *command)
 			return 0;
 		} else {
 			pr_info("added allow file to pid %d\n", pid);
+			return_buffer_set(command);
 		}
 	} else if (strcmp(command_type, "allow_directory") == 0) {
 		if (!handle_allow_directory(command)) {
@@ -122,6 +125,7 @@ int parse_command(const char *command)
 			return 0;
 		} else {
 			pr_info("added allow directory to pid %d\n", pid);
+			return_buffer_set(command);
 		}
 	} else if (strcmp(command_type, "allow_ip") == 0) {
 		if (!handle_allow_ip(command)) {
@@ -129,9 +133,15 @@ int parse_command(const char *command)
 			return 0;
 		} else {
 			pr_info("added allow ip to pid %d\n", pid);
+			return_buffer_set(command);
 		}
 	} else if (strcmp(command_type, "debug") == 0) {
+		return_buffer_set(command);
 		debug_print_restrictions();
+	} else if (strcmp(command_type, "info_restriction") == 0) {
+		print_csv_restriction_info(pid);
+	} else if (strcmp(command_type, "info_pids") == 0) {
+		print_csv_restricted_pids();
 	} else {
 		pr_err("unknown command issued %s! I can handle: restrict, unrestrict, debug, allow_pipe, allow_socket\n",
 		       command_type);

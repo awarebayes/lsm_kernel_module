@@ -6,6 +6,7 @@
 #define FILE_R_SIZE PATH_MAX
 #define NUM_RESTRICTIONS 16
 #define IP_SIZE 32
+#define RETURN_BUFFER_SIZE 16192
 
 enum file_type {
 	ALLOWED_FILE_REGULAR,
@@ -49,3 +50,9 @@ int restriction_allow_ip(pid_t process, char *ip_str);
 int restriction_has_file_allowed(pid_t process, char *pipename,
 				 enum file_type ft);
 int restriction_has_ip_allowed(pid_t process, char *ip_str);
+
+const char *return_buffer_get(void);
+int return_buffer_set(const char *str);
+
+void print_csv_restricted_pids(void);
+void print_csv_restriction_info(pid_t process);
