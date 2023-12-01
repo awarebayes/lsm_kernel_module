@@ -1,4 +1,34 @@
-# Writing custom Security hooks for the Kernel with SE Linux
+# Trivia
+
+Данный курсач реализует модуль безопасности ядра. Он следит за процессами (для которых он включен)
+и смотрит чтобы они никуда не лазяли по типу вне директории, к сторонним айпишникам и портам,
+к неразрешенным сокетам, пайпам, или обычным файлам.
+
+Управление с помощью  sequence file.
+
+```bash
+echo "restrict 9999" > /proc/mylsm/mylsm
+echo "allow_ip 9999 127.0.0.1:80" > /proc/mylsm/mylsm
+echo "allow_file 9999 /path/to/file regular" > /proc/mylsm/mylsm # regular unix file
+echo "allow_file 9999 /path/to/file.sock unix_socket" > /proc/mylsm/mylsm # file socket
+echo "allow_file 9999 /path/to/file.pipe unix_pipe" > /proc/mylsm/mylsm # pipe
+cat /proc/mylsm/mylsm
+echo "info_pids 0" > /proc/mylsm/mylsm
+cat /proc/mylsm/mylsm
+echo "info_restriction 9999" > /proc/mylsm/mylsm 
+cat /proc/mylsm/mylsm
+```
+
+Terminal apps:
+```bash
+# ssh window 1
+python ./python_tests/restrict_me.py
+
+# ssh window 2
+python ./python_tests/restricter.py
+```
+
+## Building and running
 
 Способ описанный tut не предполагает загружаемый модуль. Он предполагает встроенный модуль.
 В ядро. С перекомпиляцией ядра.
