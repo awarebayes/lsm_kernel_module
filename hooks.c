@@ -1,4 +1,3 @@
-#include <linux/fs.h>
 #include <linux/security.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -7,16 +6,22 @@
 #include <linux/kern_levels.h>
 #include <linux/binfmts.h>
 #include <linux/sched.h>
-#include <linux/stat.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 
 #include "hooks.h"
+#include "util.h"
+#include "storage.h"
 
 int my_security_socket_connect(struct socket *sock, struct sockaddr *addr,
 			       int addrlen)
 {
 	pid_t current_pid = current->pid;
+	struct restriction *r = get_restricted_process(current_pid);
+	if (r == NULL) {
+		return 0; // process is not restricted
+	}
+
 	if (addr->sa_family == AF_INET) {
 		struct sockaddr_in *saddr = (struct sockaddr_in *)addr;
 		printk(KERN_INFO
@@ -32,20 +37,15 @@ int my_security_socket_connect(struct socket *sock, struct sockaddr *addr,
 	return 0;
 }
 
-static inline int is_pipe(struct file *filp)
-{
-	return S_ISFIFO(filp->f_path.dentry->d_inode->i_mode);
-}
-
-static inline int is_socket(struct file *filp)
-{
-	return S_ISSOCK(filp->f_path.dentry->d_inode->i_mode);
-}
-
 int my_security_file_open(struct file *file)
 {
-	const char *path = file->f_path.dentry->d_name.name;
 	pid_t current_pid = current->pid;
+	struct restriction *r = get_restricted_process(current_pid);
+	if (r == NULL) {
+		return 0; // process is not restricted
+	}
+
+	const char *path = file->f_path.dentry->d_name.name;
 	if (is_socket(file)) {
 		printk(KERN_INFO
 		       "File socket <<%s>> accessed by process with PID: %d\n",
