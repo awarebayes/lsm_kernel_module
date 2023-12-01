@@ -48,8 +48,27 @@ int my_security_file_open(struct file *file)
 
 	char abspath[PATH_MAX] = { 0 };
 	get_absolute_path(file, abspath);
-	pr_err("file '%s' was accessed by a monitored process with PID: %d\n",
-	       abspath, current_pid);
+	pr_info("file '%s' was accessed by a monitored process with PID: %d\n",
+		abspath, current_pid);
+
+	if (is_subpath(abspath, "/lib/")) {
+		return 0; // allow lib
+	}
+
+	if (is_subpath(abspath, "/usr/")) {
+		return 0; // allow usr
+	}
+
+	if (r->dir_restricted) {
+		if (is_subpath(abspath, r->working_dir)) {
+			pr_info("Restricted pid %d was trying to access file %s inside its working dir: %s, access ALLOWED\n",
+				current_pid, abspath, r->working_dir);
+			return 0;
+		} else {
+			pr_info("Restricted pid %d was trying to access file %s outside its working dir: %s\n",
+				current_pid, abspath, r->working_dir);
+		}
+	}
 
 	enum file_type ft = _FILE_TYPE_UNKNOWN;
 	if (is_socket(file)) {
@@ -59,8 +78,17 @@ int my_security_file_open(struct file *file)
 	} else if (is_file(file)) {
 		ft = ALLOWED_FILE_REGULAR;
 	}
-	if (restriction_allow_file(current_pid, abspath, ft)) {
+	if (restriction_has_file_allowed(current_pid, abspath, ft)) {
+		pr_info("Access to file '%s' allowed because it was explicitly added.\n",
+			abspath);
 		return 0;
+	}
+	if (r->dir_restricted) {
+		pr_info("Access to file %s forbidden beucause it was not in restricted directory and was not found in explicitly added files\n",
+			abspath);
+	} else {
+		pr_info("Access to file %s forbidden beucause it was not found in explicitly added files\n",
+			abspath);
 	}
 	return -EACCES;
 }

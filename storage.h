@@ -1,3 +1,4 @@
+#include "linux/limits.h"
 #include <linux/printk.h>
 #include <linux/vmalloc.h>
 #include <linux/kernel.h>
@@ -23,6 +24,9 @@ struct restriction {
 
 	int num_allowed_files;
 	struct file_restriction file_restrictions[NUM_RESTRICTIONS];
+
+	int dir_restricted;
+	char working_dir[PATH_MAX];
 };
 
 void debug_print_restrictions(void);
@@ -31,5 +35,6 @@ int remove_restriction(pid_t process);
 struct restriction *get_restricted_process(pid_t process);
 
 int restriction_allow_file(pid_t process, char *pipename, enum file_type ft);
+int restriction_allow_directory(pid_t process, char *dirname);
 int restriction_has_file_allowed(pid_t process, char *pipename,
 				 enum file_type ft);

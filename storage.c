@@ -14,6 +14,11 @@ void print_restriction_info(struct restriction *r)
 {
 	pr_info("---");
 	pr_info("restriction for pid %d\n", r->pid);
+	if (r->dir_restricted) {
+		pr_info("restricted to directory: %s\n", r->working_dir);
+	} else {
+		pr_info("restricted to no directory, can only open allowed files\n");
+	}
 	pr_info("allowed files: %d\n", r->num_allowed_files);
 	for (int i = 0; i < r->num_allowed_files; i++) {
 		char ft_buf[BUF_SIZE] = { 0 };
@@ -88,6 +93,7 @@ int add_restriction(pid_t process)
 	}
 
 	struct restriction *r = kmalloc(sizeof(struct restriction), GFP_KERNEL);
+	memset(r, 0, sizeof(struct restriction));
 	INIT_LIST_HEAD(&r->list);
 	r->pid = process;
 	list_add(&r->list, m_restrictions);
@@ -111,6 +117,7 @@ int remove_restriction(pid_t process)
 
 	list_del(&r->list);
 	kfree(r);
+	n_restricted -= 1;
 
 	return 1;
 }
@@ -176,5 +183,36 @@ int restriction_allow_file(pid_t process, char *filename, enum file_type ft)
 	r->num_allowed_files++;
 
 	pr_info("Allowed file %s\n", filename);
+	return 1;
+}
+
+int restriction_allow_directory(pid_t process, char *dirname)
+{
+	if (!initialized) {
+		pr_err("Module was not initialized\n");
+		return 0;
+	}
+
+	if (strlen(dirname) >= PATH_MAX) {
+		pr_err("Name of directory is too long\n");
+		return 0;
+	}
+
+	struct restriction *r = get_restricted_process(process);
+	if (get_restricted_process(process) == NULL) {
+		pr_err("Process was not restricted!\n");
+		return 0;
+	}
+
+	if (r->dir_restricted != 0) {
+		pr_err("Pid %d has already restricted to work within directory %s\n",
+		       process, r->working_dir);
+		return 0;
+	}
+
+	strncpy(r->working_dir, dirname, PATH_MAX);
+	r->dir_restricted = 1;
+
+	pr_info("Restricted to directory %s\n", dirname);
 	return 1;
 }
