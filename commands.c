@@ -12,19 +12,33 @@
 
 #define BUFFER_SIZE 256
 
-int handle_allow_pipe(const char *command)
+int handle_allow_file(const char *command)
 {
 	char command_type[BUFFER_SIZE] = { 0 };
-	char pipename[BUFFER_SIZE] = { 0 };
+	char filename[BUFFER_SIZE] = { 0 };
+	char filetype[BUFFER_SIZE] = { 0 };
 	int pid = 0;
+	enum file_type ft = ALLOWED_FILE_REGULAR;
 
-	if (sscanf(command, "%19s %d %20s", command_type, &pid, pipename) !=
-	    3) {
-		pr_err("Invalid command format! Try: allow_pipe pid path/to/pipe_name.pipe \n");
+	if (sscanf(command, "%19s %d %20s %20s", command_type, &pid, filename,
+		   filetype) != 4) {
+		pr_err("Invalid command format! Try: allow_file pid path/to/filename regular\n");
 		return 0;
 	}
 
-	return restriction_allow_pipe(pid, pipename);
+	if (strcmp(filetype, "regular") == 0) {
+		ft = ALLOWED_FILE_REGULAR;
+	} else if (strcmp(filetype, "unix_socket") == 0) {
+		ft = ALLOWED_FILE_UNIX_SOCKET;
+	} else if (strcmp(filetype, "pipe") == 0) {
+		ft = ALLOWED_FILE_PIPE;
+	} else {
+		pr_err("Allowed types are: regular, unix_socket, pipe but I got %s\n",
+		       filetype);
+		return 0;
+	}
+
+	return restriction_allow_file(pid, filename, ft);
 }
 
 int parse_command(const char *command)
@@ -52,7 +66,7 @@ int parse_command(const char *command)
 			pr_info("unrestricted pid %d\n", pid);
 		}
 	} else if (strcmp(command_type, "allow_pipe") == 0) {
-		if (!handle_allow_pipe(command)) {
+		if (!handle_allow_file(command)) {
 			pr_err("handle_allow failed!\n");
 			return 0;
 		} else {

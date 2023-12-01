@@ -1,3 +1,4 @@
+#include "linux/limits.h"
 #include <linux/security.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -45,17 +46,21 @@ int my_security_file_open(struct file *file)
 		return 0; // process is not restricted
 	}
 
-	const char *path = file->f_path.dentry->d_name.name;
-	if (is_socket(file)) {
-		printk(KERN_INFO
-		       "File socket <<%s>> accessed by process with PID: %d\n",
-		       path, current_pid);
-	}
+	char abspath[PATH_MAX] = { 0 };
+	get_absolute_path(file, abspath);
+	pr_err("file '%s' was accessed by a monitored process with PID: %d\n",
+	       abspath, current_pid);
 
-	if (is_pipe(file)) {
-		printk(KERN_INFO
-		       "Pipe <<%s>> accessed by process with PID: %d\n",
-		       path, current_pid);
+	enum file_type ft = _FILE_TYPE_UNKNOWN;
+	if (is_socket(file)) {
+		ft = ALLOWED_FILE_UNIX_SOCKET;
+	} else if (is_pipe(file)) {
+		ft = ALLOWED_FILE_PIPE;
+	} else if (is_file(file)) {
+		ft = ALLOWED_FILE_REGULAR;
 	}
-	return 0;
+	if (restriction_allow_file(current_pid, abspath, ft)) {
+		return 0;
+	}
+	return -EACCES;
 }

@@ -8,13 +8,31 @@ static int n_restricted = 0;
 
 static struct list_head *m_restrictions = NULL;
 
+#define BUF_SIZE 256
+
 void print_restriction_info(struct restriction *r)
 {
 	pr_info("---");
 	pr_info("restriction for pid %d\n", r->pid);
-	pr_info("allowed pipes: %d\n", r->num_allowed_pipes);
-	for (int i = 0; i < r->num_allowed_pipes; i++) {
-		pr_info("\tpipe '%s'\n", r->pipe_restrictions[i].pipename);
+	pr_info("allowed files: %d\n", r->num_allowed_files);
+	for (int i = 0; i < r->num_allowed_files; i++) {
+		char ft_buf[BUF_SIZE] = { 0 };
+		switch (r->file_restrictions[i].type) {
+		case ALLOWED_FILE_REGULAR:
+			sprintf(ft_buf, "regular");
+			break;
+		case ALLOWED_FILE_PIPE:
+			sprintf(ft_buf, "file_pipe");
+			break;
+		case ALLOWED_FILE_UNIX_SOCKET:
+			sprintf(ft_buf, "unix_socket");
+			break;
+		default:
+			sprintf(ft_buf, "unknown");
+			break;
+		}
+		pr_info("\tfile %s '%s'\n", ft_buf,
+			r->file_restrictions[i].filename);
 	}
 }
 
@@ -97,7 +115,8 @@ int remove_restriction(pid_t process)
 	return 1;
 }
 
-int restriction_has_pipe_allowed(pid_t process, char *pipename)
+int restriction_has_file_allowed(pid_t process, char *filename,
+				 enum file_type ft)
 {
 	if (!initialized) {
 		pr_err("Module was not initialized\n");
@@ -110,8 +129,9 @@ int restriction_has_pipe_allowed(pid_t process, char *pipename)
 		return 0;
 	}
 
-	for (int i = 0; i < r->num_allowed_pipes; i++) {
-		if (strcmp(r->pipe_restrictions[i].pipename, pipename) == 0) {
+	for (int i = 0; i < r->num_allowed_files; i++) {
+		if (strcmp(r->file_restrictions[i].filename, filename) == 0 &&
+		    ft == r->file_restrictions[i].type) {
 			return 1;
 		}
 	}
@@ -119,15 +139,15 @@ int restriction_has_pipe_allowed(pid_t process, char *pipename)
 	return 0;
 }
 
-int restriction_allow_pipe(pid_t process, char *pipename)
+int restriction_allow_file(pid_t process, char *filename, enum file_type ft)
 {
 	if (!initialized) {
 		pr_err("Module was not initialized\n");
 		return 0;
 	}
 
-	if (strlen(pipename) >= PIPE_R_SIZE) {
-		pr_err("Name of pipe is too long\n");
+	if (strlen(filename) >= FILE_R_SIZE) {
+		pr_err("Name of file is too long\n");
 		return 0;
 	}
 
@@ -137,23 +157,24 @@ int restriction_allow_pipe(pid_t process, char *pipename)
 		return 0;
 	}
 
-	if (r->num_allowed_pipes + 1 >= NUM_RESTRICTIONS) {
-		pr_err("Process has maximum number of restricted pipes: %d\n",
-		       r->num_allowed_pipes);
+	if (r->num_allowed_files + 1 >= NUM_RESTRICTIONS) {
+		pr_err("Process has maximum number of restricted filename: %d\n",
+		       r->num_allowed_files);
 		return 0;
 	}
 
-	for (int i = 0; i < r->num_allowed_pipes; i++) {
-		if (strcmp(r->pipe_restrictions[i].pipename, pipename) == 0) {
-			pr_err("Pipe was already allowed!\n");
+	for (int i = 0; i < r->num_allowed_files; i++) {
+		if (strcmp(r->file_restrictions[i].filename, filename) == 0) {
+			pr_err("File was already allowed!\n");
 			return 0;
 		}
 	}
 
-	strncpy(r->pipe_restrictions[r->num_allowed_pipes].pipename, pipename,
-		PIPE_R_SIZE);
-	r->num_allowed_pipes++;
+	strncpy(r->file_restrictions[r->num_allowed_files].filename, filename,
+		FILE_R_SIZE);
+	r->file_restrictions[r->num_allowed_files].type = ft;
+	r->num_allowed_files++;
 
-	pr_info("Allowed pipe %s\n", pipename);
+	pr_info("Allowed file %s\n", filename);
 	return 1;
 }
