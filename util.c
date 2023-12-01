@@ -1,8 +1,14 @@
 #include "util.h"
 #include "linux/dcache.h"
+#include "linux/inet.h"
 #include "linux/limits.h"
+#include "linux/printk.h"
+#include <linux/in.h>
+#include <linux/in6.h>
 
 #define MAX_DENTRIES 256
+#define BUF_SIZE 1024
+#define IP_SIZE 32
 
 #include "linux/list.h"
 
@@ -45,4 +51,25 @@ int is_subpath(const char *file_path, const char *dir_path)
 		return 1;
 	}
 	return 0;
+}
+
+int validate_ipv4_with_port(const char *ip_with_port, char *valid_buffer)
+{
+	char ip_str[INET_ADDRSTRLEN];
+	unsigned int a, b, c, d;
+	int port;
+	if (sscanf(ip_with_port, "%15[^:]:%d", ip_str, &port) != 2) {
+		return 0; // Invalid format
+	}
+
+	if (sscanf(ip_str, "%u.%u.%u.%u", &a, &b, &c, &d) == 4) {
+	}
+	if (a > 255 || b > 255 || c > 255 || d > 255) {
+		pr_err("Invalid ip: >255\n");
+		return 0;
+	}
+
+	snprintf(valid_buffer, IP_SIZE, "%u.%u.%u.%u:%u", a, b, c, d, port);
+
+	return 1;
 }

@@ -14,6 +14,8 @@
 #include "util.h"
 #include "storage.h"
 
+#define BUF_SIZE 256
+
 int my_security_socket_connect(struct socket *sock, struct sockaddr *addr,
 			       int addrlen)
 {
@@ -24,15 +26,19 @@ int my_security_socket_connect(struct socket *sock, struct sockaddr *addr,
 	}
 
 	if (addr->sa_family == AF_INET) {
+		char ip_str_buffer[BUF_SIZE] = { 0 };
 		struct sockaddr_in *saddr = (struct sockaddr_in *)addr;
-		printk(KERN_INFO
-		       "Connected to IPv4 address: %pI4:%d by PID %d\n",
-		       &saddr->sin_addr, ntohs(saddr->sin_port), current_pid);
-	} else if (addr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *saddr = (struct sockaddr_in6 *)addr;
-		printk(KERN_INFO
-		       "Connected to IPv6 address: %pI6:%d by PID %d\n",
-		       &saddr->sin6_addr, ntohs(saddr->sin6_port), current_pid);
+
+		snprintf(ip_str_buffer, IP_SIZE, "%d.%d.%d.%d:%d",
+			 NIPQUAD(saddr->sin_addr), ntohs(saddr->sin_port));
+		pr_info("Checking ip '%s' against %d's allowed ips\n",
+			ip_str_buffer, current_pid);
+		if (restriction_has_ip_allowed(current_pid, ip_str_buffer)) {
+			pr_info("Connection allowed");
+			return 0;
+		} else {
+			return -EPERM;
+		}
 	}
 
 	return 0;

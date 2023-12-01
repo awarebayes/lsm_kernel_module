@@ -10,6 +10,7 @@
 #include "linux/types.h"
 #include <linux/kernel.h>
 #include "storage.h"
+#include "util.h"
 
 #define BUFFER_SIZE 1024
 
@@ -46,7 +47,6 @@ int handle_allow_file(const char *command)
 int handle_allow_directory(const char *command)
 {
 	char command_type[BUFFER_SIZE] = { 0 };
-	char filename[BUFFER_SIZE] = { 0 };
 	char directory[PATH_MAX] = { 0 };
 	int pid = 0;
 	enum file_type ft = ALLOWED_FILE_REGULAR;
@@ -64,6 +64,25 @@ int handle_allow_directory(const char *command)
 	}
 
 	return restriction_allow_directory(pid, directory);
+}
+
+int handle_allow_ip(const char *command)
+{
+	char command_type[BUFFER_SIZE] = { 0 };
+	char ip_with_port[BUFFER_SIZE] = { 0 };
+	char valid_ip_buffer[BUFFER_SIZE] = { 0 };
+	int pid = 0;
+	enum file_type ft = ALLOWED_FILE_REGULAR;
+
+	if (sscanf(command, "%19s %d %1023s", command_type, &pid,
+		   ip_with_port) != 3) {
+		pr_err("Invalid command format! Try: allow_ip pid 127.0.0.1:8080\n");
+		return 0;
+	}
+
+	validate_ipv4_with_port(ip_with_port, valid_ip_buffer);
+
+	return restriction_allow_ip(pid, valid_ip_buffer);
 }
 
 int parse_command(const char *command)
@@ -103,6 +122,13 @@ int parse_command(const char *command)
 			return 0;
 		} else {
 			pr_info("added allow directory to pid %d\n", pid);
+		}
+	} else if (strcmp(command_type, "allow_ip") == 0) {
+		if (!handle_allow_ip(command)) {
+			pr_err("handle_allow_ip failed!\n");
+			return 0;
+		} else {
+			pr_info("added allow ip to pid %d\n", pid);
 		}
 	} else if (strcmp(command_type, "debug") == 0) {
 		debug_print_restrictions();

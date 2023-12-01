@@ -39,6 +39,10 @@ void print_restriction_info(struct restriction *r)
 		pr_info("\tfile %s '%s'\n", ft_buf,
 			r->file_restrictions[i].filename);
 	}
+	pr_info("allowed ips: %d\n", r->num_allowed_ips);
+	for (int i = 0; i < r->num_allowed_ips; i++) {
+		pr_info("\tipv4 '%s'\n", r->ip_restrictions[i].ip_str);
+	}
 }
 
 void debug_print_restrictions(void)
@@ -146,6 +150,32 @@ int restriction_has_file_allowed(pid_t process, char *filename,
 	return 0;
 }
 
+int restriction_has_ip_allowed(pid_t process, char *ip_str)
+{
+	if (!initialized) {
+		pr_err("Module was not initialized\n");
+		return 0;
+	}
+
+	struct restriction *r = get_restricted_process(process);
+	if (r == NULL) {
+		pr_err("Process was not restricted!\n");
+		return 0;
+	}
+
+	if (r->num_allowed_ips == 0) {
+		pr_info("Process has no allowed ips...\n");
+	}
+
+	for (int i = 0; i < r->num_allowed_ips; i++) {
+		if (strcmp(r->ip_restrictions[i].ip_str, ip_str) == 0) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 int restriction_allow_file(pid_t process, char *filename, enum file_type ft)
 {
 	if (!initialized) {
@@ -199,7 +229,7 @@ int restriction_allow_directory(pid_t process, char *dirname)
 	}
 
 	struct restriction *r = get_restricted_process(process);
-	if (get_restricted_process(process) == NULL) {
+	if (r == NULL) {
 		pr_err("Process was not restricted!\n");
 		return 0;
 	}
@@ -214,5 +244,48 @@ int restriction_allow_directory(pid_t process, char *dirname)
 	r->dir_restricted = 1;
 
 	pr_info("Restricted to directory %s\n", dirname);
+	return 1;
+}
+
+int restriction_allow_ip(pid_t process, char *ip_str)
+{
+	if (!initialized) {
+		pr_err("Module was not initialized\n");
+		return 0;
+	}
+
+	if (strlen(ip_str) >= IP_SIZE) {
+		pr_err("Ip string is too long\n");
+		return 0;
+	}
+
+	struct restriction *r = get_restricted_process(process);
+	if (r == NULL) {
+		pr_err("Process was not restricted!\n");
+		return 0;
+	}
+
+	if (r->dir_restricted != 0) {
+		pr_err("Pid %d has already restricted to work within directory %s\n",
+		       process, r->working_dir);
+		return 0;
+	}
+
+	if (r->num_allowed_ips + 1 >= NUM_RESTRICTIONS) {
+		pr_err("Process has maximum number of restricted ips: %d\n",
+		       r->num_allowed_ips);
+		return 0;
+	}
+
+	for (int i = 0; i < r->num_allowed_files; i++) {
+		if (strcmp(r->ip_restrictions[i].ip_str, ip_str) == 0) {
+			pr_err("IP was already allowed!\n");
+			return 0;
+		}
+	}
+
+	strncpy(r->ip_restrictions[r->num_allowed_ips].ip_str, ip_str, IP_SIZE);
+	r->num_allowed_ips++;
+
 	return 1;
 }
