@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 
 #include "hooks.h"
+#include "commands.h"
 
 #define MAX_BUF_SIZE PAGE_SIZE
 #define MAX_NUM_WATCHES 2048
@@ -122,8 +123,8 @@ static ssize_t fortune_write(struct file *file, const char __user *buf,
 	}
 
 	buffer[len - 1] = '\0';
-
-	pr_info("Got message %s", buffer);
+	pr_info("Handling command %s", buffer);
+	parse_command(buffer);
 
 	return len;
 }
