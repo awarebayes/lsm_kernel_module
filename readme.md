@@ -8,10 +8,11 @@
 
 ```bash
 echo "restrict 9999" > /proc/mylsm/mylsm
-echo "allow_ip 9999 127.0.0.1:80" > /proc/mylsm/mylsm
+echo "allow_ip 9999 127.0.0.1:80" > /proc/mylsm/mylsm 
 echo "allow_file 9999 /path/to/file regular" > /proc/mylsm/mylsm # regular unix file
-echo "allow_file 9999 /path/to/file.sock unix_socket" > /proc/mylsm/mylsm # file socket
-echo "allow_file 9999 /path/to/file.pipe unix_pipe" > /proc/mylsm/mylsm # pipe
+echo "allow_file 9999 /path/to/file.sock unix_socket" > /proc/mylsm/mylsm
+echo "allow_file 9999 /path/to/file.pipe pipe" > /proc/mylsm/mylsm
+echo "allow_directory 9999 /path/to/directory" > /proc/mylsm/mylsm
 cat /proc/mylsm/mylsm
 echo "info_pids 0" > /proc/mylsm/mylsm
 cat /proc/mylsm/mylsm
